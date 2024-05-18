@@ -6,6 +6,16 @@ np.random.seed(0)
 env_name = 'CartPole-v1'
 env = gym.make(env_name)
 
+
+#forward propagation
+def predict(s,w1,w2):
+    h = np.dot(w1,s) #input to hidden layer
+    h[h<0]=0 #relu
+    out = np.dot(w2,h) #hidden layer to output
+    out = 1.0 / (1.0 + np.exp(-out)) #sigmoid 
+    return out
+
+
 # the function we want to optimize
 def f(w):
     # solution = np.array([0.5, 0.1, -0.3])
@@ -16,47 +26,50 @@ def f(w):
     # reward = -np.sum(np.square(solution - w))
     # return reward
 
-    #parameters
-    max_iterations = 1000
+    # hyperparameters
+    num_episodes = 50
 
     w1_try, w2_try = reshape_parameters(w)
-    observation = env.reset()[0]
-    #observe initial state
     total_reward = 0
-    iter_index = 0
-    while iter_index < max_iterations:
-        iter_index += 1
-        Action = predict(observation, w1_try, w2_try)
-        Action = np.argmax(Action)
-        #execute action
-        observation_new, reward, done, _, _ = env.step(Action)
-        #collect reward
-        total_reward += reward
-        #update state
-        observation = observation_new
-        #end episode
-        if done:
-            break
 
-    return total_reward
+    for episode in range(num_episodes):
+        observation = env.reset()[0]
+        #observe initial state
+        while True:
+            action = predict(observation, w1_try, w2_try)
+            action = np.argmax(action)
+            #execute action
+            observation_new, reward, terminated, truncated, _ = env.step(action)
+            #collect reward
+            total_reward += reward
+            #update state
+            observation = observation_new
+            #end episode
+            if terminated or truncated:
+                break
+
+    return total_reward / num_episodes
 
 
 def train(fitness, n_params):
 
     # hyperparameters
     npop: int = 50 # population size
-    sigma: float = 0.01 # noise standard deviation
-    alpha: float = 0.01 # learning rate
-    n_iter: int = 300 # number of iterations
+    sigma: float = 0.1 # noise standard deviation
+    alpha: float = 0.1 # learning rate
+    n_iter: int = 200 # number of iterations
 
     # Random initialization
     w = np.random.randn(n_params)
 
+    best_w = w
+    best_fitness = 0
+
     for i in range(n_iter):
 
-        if i % (n_iter // 20) == 0:
+        # if i % (n_iter // 20) == 0:
             # print('iter %d. w: %s, reward: %f' % (i, str(w), fitness(w)))
-            print(f'iter {i}. reward: {fitness(w)}')
+        print(f'iter {i}. reward: {fitness(w)}')
 
         # initialize memory for a population of w's, and their rewards
         N = np.random.randn(npop, n_params) # samples from a normal distribution N(0,1)
@@ -73,16 +86,18 @@ def train(fitness, n_params):
         w = w + alpha/(npop*sigma) * np.dot(N.T, A)
         # print(f'wR = {fitness(w)}, max_R = {np.max(R)}, mean_R = {np.mean(R)}')
 
-    return w, fitness(w)
+        # TODO: pick best one from the population! No need to run fitness again + just pick the best one ever found?
+        f = fitness(w)
+        if f > best_fitness:
+            best_w, best_fitness = w, f
+
+        # TODO: just for testing. Remove!
+        if best_fitness >= 300:
+            break
+
+    return best_w, best_fitness
 
 
-#forward propagation
-def predict(s,w1,w2):
-    h = np.dot(w1,s) #input to hidden layer
-    h[h<0]=0 #relu
-    out = np.dot(w2,h) #hidden layer to output
-    out = 1.0 / (1.0 + np.exp(-out)) #sigmoid 
-    return out
 
 
 # add hidden layers or nodes according to needs
@@ -122,14 +137,23 @@ print("Running showcase...")
 
 
 showcase_env = gym.make(env_name, render_mode="human")
-observation, info = showcase_env.reset()
+observation, _ = showcase_env.reset()
+w1_try, w2_try = reshape_parameters(best_w)
 
+showcase_reward = 0
 while True:
-    action = showcase_env.action_space.sample()  # agent policy that uses the observation and info
-    observation, reward, terminated, truncated, info = showcase_env.step(action)
+    action = predict(observation, w1_try, w2_try)
+    action = np.argmax(action)
+    observation, reward, terminated, truncated, _ = showcase_env.step(action)
+    showcase_reward += reward
 
     if terminated or truncated:
-        observation, info = showcase_env.reset()
+        if terminated:
+            print(f'Dead! Reward = {showcase_reward}')
+        else:
+            print("Win!")
+        observation, _ = showcase_env.reset()
+        showcase_reward = 0
 
 showcase_env.close()
 
