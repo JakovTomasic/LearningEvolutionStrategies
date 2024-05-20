@@ -5,15 +5,34 @@ np.random.seed(0)
 #load environment
 env_name = 'CartPole-v1'
 
-# neural network
-IL = 4 #input layer nodes
-HL = 50 #hidden layer nodes
-OL = 2 #output layer nodes
 
-tmp_w1 = np.random.randn(HL,IL) / np.sqrt(IL)
-tmp_w2 = np.random.randn(OL,HL) / np.sqrt(HL)
-num_weights1 = len(tmp_w1.flatten())
-num_weights2 = len(tmp_w2.flatten())
+class NeuralNetwork:
+
+    def __init__(self):
+        self.IL = 4 #input layer nodes
+        self.HL = 50 #hidden layer nodes
+        self.OL = 2 #output layer nodes
+
+        self.tmp_w1 = np.random.randn(self.HL, self.IL) / np.sqrt(self.IL)
+        self.tmp_w2 = np.random.randn(self.OL, self.HL) / np.sqrt(self.HL)
+        self.num_weights1 = len(self.tmp_w1.flatten())
+        self.num_weights2 = len(self.tmp_w2.flatten())
+
+    def reshape_parameters(self, w):
+        w1_list = w[:self.num_weights1]
+        w2_list = w[self.num_weights1:]
+        w1 = w1_list.reshape(self.tmp_w1.shape)
+        w2 = w2_list.reshape(self.tmp_w2.shape)
+        return [w1, w2]
+
+    #forward propagation
+    def predict(self, s, w_list):
+        h = np.dot(w_list[0], s) #input to hidden layer
+        h[h<0]=0 #relu
+        out = np.dot(w_list[1], h) #hidden layer to output
+        out = 1.0 / (1.0 + np.exp(-out)) #sigmoid 
+        return out
+
 
 # hyperparameters
 npop: int = 50 # population size
@@ -22,37 +41,20 @@ alpha: float = 0.1 # learning rate
 n_iter: int = 200 # number of iterations
 simulation_num_episodes: int = 50
 good_enough_fitness: float = 475 # early stop
-
-
-
-
-def reshape_parameters(w):
-    w1_list = w[:num_weights1]
-    w2_list = w[num_weights1:]
-    w1 = w1_list.reshape(tmp_w1.shape)
-    w2 = w2_list.reshape(tmp_w2.shape)
-    return w1, w2
-
-#forward propagation
-def predict(s,w1,w2):
-    h = np.dot(w1,s) #input to hidden layer
-    h[h<0]=0 #relu
-    out = np.dot(w2,h) #hidden layer to output
-    out = 1.0 / (1.0 + np.exp(-out)) #sigmoid 
-    return out
+neural_network = NeuralNetwork()
 
 
 # the function we want to optimize
 def f(w, test_env):
 
-    w1_try, w2_try = reshape_parameters(w)
+    w_list = neural_network.reshape_parameters(w)
     total_reward = 0
 
     for episode in range(simulation_num_episodes):
         observation = test_env.reset()[0]
         #observe initial state
         while True:
-            action = predict(observation, w1_try, w2_try)
+            action = neural_network.predict(observation, w_list)
             action = np.argmax(action)
             #execute action
             observation_new, reward, terminated, truncated, _ = test_env.step(action)
@@ -105,15 +107,16 @@ def train(fitness, n_params, test_env):
 
     return best_w, best_fitness
 
+
 def show_to_humans(env_name, w):
     print("Running showcase...")
     showcase_env = gym.make(env_name, render_mode="human")
     observation, _ = showcase_env.reset()
-    w1_try, w2_try = reshape_parameters(w)
+    w_list = neural_network.reshape_parameters(w)
 
     showcase_reward = 0
     while True:
-        action = predict(observation, w1_try, w2_try)
+        action = neural_network.predict(observation, w_list)
         action = np.argmax(action)
         observation, reward, terminated, truncated, _ = showcase_env.step(action)
         showcase_reward += reward
@@ -135,7 +138,7 @@ def main():
     test_env = gym.make(env_name)
     # reset() should (in the typical use case) be called with a seed right after initialization and then never again.
     test_env.reset(seed=0)
-    best_w, fitness = train(f, num_weights1 + num_weights2, test_env)
+    best_w, fitness = train(f, neural_network.num_weights1 + neural_network.num_weights2, test_env)
     test_env.close()
 
     print("done!")
