@@ -8,28 +8,38 @@ env_name = 'CartPole-v1'
 
 class NeuralNetwork:
 
-    def __init__(self):
-        self.IL = 4 #input layer nodes
-        self.HL = 50 #hidden layer nodes
-        self.OL = 2 #output layer nodes
+    def __init__(self, layers: list[int]):
+        initiali_w_list = []
+        num_weights: list[int] = []
 
-        self.tmp_w1 = np.random.randn(self.HL, self.IL) / np.sqrt(self.IL)
-        self.tmp_w2 = np.random.randn(self.OL, self.HL) / np.sqrt(self.HL)
-        self.num_weights1 = len(self.tmp_w1.flatten())
-        self.num_weights2 = len(self.tmp_w2.flatten())
+        previous_layer = layers[0]
+        for layer in layers[1:]:
+            intial_layer_w = np.random.randn(layer, previous_layer) / np.sqrt(previous_layer)
+            initiali_w_list.append(intial_layer_w)
+            num_weights.append(len(intial_layer_w.flatten()))
+            previous_layer = layer
+
+        self.initiali_w_list = initiali_w_list
+        self.num_weights = num_weights
+        self.layers_count = len(layers)
+        self.weights_count = sum(num_weights)
 
     def reshape_parameters(self, w):
-        w1_list = w[:self.num_weights1]
-        w2_list = w[self.num_weights1:]
-        w1 = w1_list.reshape(self.tmp_w1.shape)
-        w2 = w2_list.reshape(self.tmp_w2.shape)
-        return [w1, w2]
+        w_list = []
+        next_index_to_take = 0
+        for i in range(self.layers_count - 1):
+            right_margin = next_index_to_take + self.num_weights[i]
+            as_list = w[next_index_to_take:right_margin]
+            w_list.append(as_list.reshape(self.initiali_w_list[i].shape))
+            next_index_to_take = right_margin
+        return w_list
 
     #forward propagation
     def predict(self, s, w_list):
-        h = np.dot(w_list[0], s) #input to hidden layer
-        h[h<0]=0 #relu
-        out = np.dot(w_list[1], h) #hidden layer to output
+        out = np.dot(w_list[0], s) #input to hidden layer
+        for w in w_list[1:]:
+            out[out<0]=0 #relu
+            out = np.dot(w, out) #hidden layer to output
         out = 1.0 / (1.0 + np.exp(-out)) #sigmoid 
         return out
 
@@ -41,7 +51,11 @@ alpha: float = 0.1 # learning rate
 n_iter: int = 200 # number of iterations
 simulation_num_episodes: int = 50
 good_enough_fitness: float = 475 # early stop
-neural_network = NeuralNetwork()
+
+IL = 4 #input layer nodes
+HL = 50 #hidden layer nodes
+OL = 2 #output layer nodes
+neural_network = NeuralNetwork([IL, HL, OL])
 
 
 # the function we want to optimize
@@ -138,7 +152,7 @@ def main():
     test_env = gym.make(env_name)
     # reset() should (in the typical use case) be called with a seed right after initialization and then never again.
     test_env.reset(seed=0)
-    best_w, fitness = train(f, neural_network.num_weights1 + neural_network.num_weights2, test_env)
+    best_w, fitness = train(f, neural_network.weights_count, test_env)
     test_env.close()
 
     print("done!")
