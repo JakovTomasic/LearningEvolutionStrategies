@@ -47,6 +47,17 @@ SHOW_ALL_FITNESS_REWARDS = False
 # )
 # SHOW_ALL_FITNESS_REWARDS = False
 
+env_name = 'CarRacing-v2'
+neural_network = NeuralNetwork([96*96*3, 100, 5], process_out_action=lambda x: np.argmax(sigmoid(x)))
+hyperparameters = Hyperparameters(
+    npop = 10,
+    sigma = 0.2,
+    alpha = 0.1,
+    n_iter = 200,
+    simulation_num_episodes = 1,
+    good_enough_fitness = 90,
+)
+SHOW_ALL_FITNESS_REWARDS = True
 
 
 
@@ -59,14 +70,16 @@ def fitness_function(w, test_env, hyperparams):
     for episode in range(hyperparams.simulation_num_episodes):
         observation = test_env.reset()[0]
         #observe initial state
-        while True:
-            action = neural_network.predict(observation, w_list)
+        index = 0
+        while index < 100:
+            action = neural_network.predict(observation.flatten(), w_list)
             #execute action
             observation_new, reward, terminated, truncated, _ = test_env.step(action)
             #collect reward
             total_reward += reward
             #update state
             observation = observation_new
+            index += 1
             #end episode
             if terminated or truncated:
                 break
@@ -102,7 +115,7 @@ def show_to_humans(env_name, w):
 
 
 def main():
-    test_env = gym.make(env_name)
+    test_env = gym.make(env_name, continuous=False)
     # reset() should (in the typical use case) be called with a seed right after initialization and then never again.
     test_env.reset(seed=RANDOM_SEED)
     best_w, fitness = train(fitness_function, neural_network.weights_count, test_env, hyperparameters)
