@@ -12,4 +12,4 @@
 - do stuff...
 - deactivate by just running `deactivate`. The documentation says: "Once you have finished working on your project, it’s a good habit to deactivate its venv. Without deactivating your venv, all other Python code you execute, even if it is outside your project directory, will also run inside the venv."
 
-
+To run gymnasium game training run `python gym.py`
