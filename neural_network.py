@@ -1,5 +1,11 @@
 import numpy as np
 
+def sigmoid(x):
+    sig = 1.0 / (1.0 + np.exp(-x))
+    sig = np.minimum(sig, 0.9999)
+    sig = np.maximum(sig, 0.0001)
+    return sig
+
 class NeuralNetwork:
 
     def __init__(self, layers: list[int]):
@@ -34,5 +40,4 @@ class NeuralNetwork:
         for w in w_list[1:]:
             out[out<0]=0 #relu
             out = np.dot(w, out) #hidden layer to output
-        out = 1.0 / (1.0 + np.exp(-out)) #sigmoid 
-        return out
+        return sigmoid(out)

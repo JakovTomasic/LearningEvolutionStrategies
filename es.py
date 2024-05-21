@@ -1,4 +1,5 @@
 import numpy as np
+import math
 
 def train(fitness, n_params, test_env, hyperparams):
 
@@ -6,7 +7,7 @@ def train(fitness, n_params, test_env, hyperparams):
     w = np.random.randn(n_params)
 
     best_w = w
-    best_fitness = 0
+    best_fitness = -math.inf
 
     for i in range(hyperparams.n_iter):
 
@@ -22,7 +23,7 @@ def train(fitness, n_params, test_env, hyperparams):
             R[j] = fitness(w_try, test_env, hyperparams) # evaluate the jittered version
 
         # standardize the rewards to have a gaussian distribution
-        A = (R - np.mean(R)) / np.std(R)
+        A = (R - np.mean(R)) / np.std(R) if np.std(R) != 0 else np.zeros(hyperparams.npop)
         # perform the parameter update. The matrix multiply below
         # is just an efficient way to sum up all the rows of the noise matrix N,
         # where each row N[j] is weighted by A[j]
