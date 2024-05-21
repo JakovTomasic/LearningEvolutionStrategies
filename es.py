@@ -1,70 +1,41 @@
 import numpy as np
 import gymnasium as gym
+from neural_network import NeuralNetwork
 np.random.seed(0)
+
+class Hyperparameters:
+    def __init__(self, npop: int, sigma: float, alpha: float, n_iter: int, simulation_num_episodes: int, good_enough_fitness: float):
+        self.npop: int = npop # population size
+        self.sigma: float = sigma # noise standard deviation
+        self.alpha: float = alpha # learning rate
+        self.n_iter: int = n_iter # number of iterations
+        self.simulation_num_episodes: int = simulation_num_episodes
+        self.good_enough_fitness: float = good_enough_fitness # early stop
+
 
 #load environment
 env_name = 'CartPole-v1'
-
-
-class NeuralNetwork:
-
-    def __init__(self, layers: list[int]):
-        initiali_w_list = []
-        num_weights: list[int] = []
-
-        previous_layer = layers[0]
-        for layer in layers[1:]:
-            intial_layer_w = np.random.randn(layer, previous_layer) / np.sqrt(previous_layer)
-            initiali_w_list.append(intial_layer_w)
-            num_weights.append(len(intial_layer_w.flatten()))
-            previous_layer = layer
-
-        self.initiali_w_list = initiali_w_list
-        self.num_weights = num_weights
-        self.layers_count = len(layers)
-        self.weights_count = sum(num_weights)
-
-    def reshape_parameters(self, w):
-        w_list = []
-        next_index_to_take = 0
-        for i in range(self.layers_count - 1):
-            right_margin = next_index_to_take + self.num_weights[i]
-            as_list = w[next_index_to_take:right_margin]
-            w_list.append(as_list.reshape(self.initiali_w_list[i].shape))
-            next_index_to_take = right_margin
-        return w_list
-
-    #forward propagation
-    def predict(self, s, w_list):
-        out = np.dot(w_list[0], s) #input to hidden layer
-        for w in w_list[1:]:
-            out[out<0]=0 #relu
-            out = np.dot(w, out) #hidden layer to output
-        out = 1.0 / (1.0 + np.exp(-out)) #sigmoid 
-        return out
-
-
-# hyperparameters
-npop: int = 50 # population size
-sigma: float = 0.1 # noise standard deviation
-alpha: float = 0.1 # learning rate
-n_iter: int = 200 # number of iterations
-simulation_num_episodes: int = 50
-good_enough_fitness: float = 475 # early stop
 
 IL = 4 #input layer nodes
 HL = 50 #hidden layer nodes
 OL = 2 #output layer nodes
 neural_network = NeuralNetwork([IL, HL, OL])
+hyperparameters = Hyperparameters(
+    npop = 50,
+    sigma = 0.1,
+    alpha = 0.1,
+    n_iter = 200,
+    simulation_num_episodes = 50,
+    good_enough_fitness = 475,
+)
 
 
-# the function we want to optimize
-def f(w, test_env):
+def fitness_function(w, test_env, hyperparams):
 
     w_list = neural_network.reshape_parameters(w)
     total_reward = 0
 
-    for episode in range(simulation_num_episodes):
+    for episode in range(hyperparams.simulation_num_episodes):
         observation = test_env.reset()[0]
         #observe initial state
         while True:
@@ -80,10 +51,10 @@ def f(w, test_env):
             if terminated or truncated:
                 break
 
-    return total_reward / simulation_num_episodes
+    return total_reward / hyperparams.simulation_num_episodes
 
 
-def train(fitness, n_params, test_env):
+def train(fitness, n_params, test_env, hyperparams):
 
     # Random initialization
     w = np.random.randn(n_params)
@@ -91,32 +62,32 @@ def train(fitness, n_params, test_env):
     best_w = w
     best_fitness = 0
 
-    for i in range(n_iter):
+    for i in range(hyperparams.n_iter):
 
         # if i % (n_iter // 20) == 0:
             # print('iter %d. w: %s, reward: %f' % (i, str(w), fitness(w)))
-        print(f'iter {i}. reward: {fitness(w, test_env)}')
+        print(f'iter {i}. reward: {fitness(w, test_env, hyperparams)}')
 
         # initialize memory for a population of w's, and their rewards
-        N = np.random.randn(npop, n_params) # samples from a normal distribution N(0,1)
-        R = np.zeros(npop)
-        for j in range(npop):
-            w_try = w + sigma*N[j] # jitter w using gaussian of sigma
-            R[j] = fitness(w_try, test_env) # evaluate the jittered version
+        N = np.random.randn(hyperparams.npop, n_params) # samples from a normal distribution N(0,1)
+        R = np.zeros(hyperparams.npop)
+        for j in range(hyperparams.npop):
+            w_try = w + hyperparams.sigma*N[j] # jitter w using gaussian of sigma
+            R[j] = fitness(w_try, test_env, hyperparams) # evaluate the jittered version
 
         # standardize the rewards to have a gaussian distribution
         A = (R - np.mean(R)) / np.std(R)
         # perform the parameter update. The matrix multiply below
         # is just an efficient way to sum up all the rows of the noise matrix N,
         # where each row N[j] is weighted by A[j]
-        w = w + alpha/(npop*sigma) * np.dot(N.T, A)
+        w = w + hyperparams.alpha/(hyperparams.npop*hyperparams.sigma) * np.dot(N.T, A)
 
         # TODO: pick best one from the population! No need to run fitness again + just pick the best one ever found?
-        f = fitness(w, test_env)
+        f = fitness(w, test_env, hyperparams)
         if f > best_fitness:
             best_w, best_fitness = w, f
 
-        if best_fitness >= good_enough_fitness:
+        if best_fitness >= hyperparams.good_enough_fitness:
             break
 
     return best_w, best_fitness
@@ -152,7 +123,7 @@ def main():
     test_env = gym.make(env_name)
     # reset() should (in the typical use case) be called with a seed right after initialization and then never again.
     test_env.reset(seed=0)
-    best_w, fitness = train(f, neural_network.weights_count, test_env)
+    best_w, fitness = train(fitness_function, neural_network.weights_count, test_env, hyperparameters)
     test_env.close()
 
     print("done!")
