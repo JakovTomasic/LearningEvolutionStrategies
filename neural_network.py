@@ -8,7 +8,7 @@ def sigmoid(x):
 
 class NeuralNetwork:
 
-    def __init__(self, layers: list[int]):
+    def __init__(self, layers: list[int], process_out_action):
         initiali_w_list = []
         num_weights: list[int] = []
 
@@ -23,6 +23,7 @@ class NeuralNetwork:
         self.num_weights = num_weights
         self.layers_count = len(layers)
         self.weights_count = sum(num_weights)
+        self.process_out = process_out_action
 
     def reshape_parameters(self, w):
         w_list = []
@@ -40,4 +41,4 @@ class NeuralNetwork:
         for w in w_list[1:]:
             out[out<0]=0 #relu
             out = np.dot(w, out) #hidden layer to output
-        return sigmoid(out)
+        return self.process_out(out)

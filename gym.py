@@ -1,19 +1,18 @@
 import numpy as np
 import gymnasium as gym
-from neural_network import NeuralNetwork
+from neural_network import NeuralNetwork, sigmoid
 from hyperparameters import Hyperparameters
 from es import train
 
 RANDOM_SEED = 0
 np.random.seed(RANDOM_SEED)
 
-SHOW_ALL_FITNESS_REWARDS = False
 
 env_name = 'CartPole-v1'
 IL = 4 #input layer nodes
 HL = 50 #hidden layer nodes
 OL = 2 #output layer nodes
-neural_network = NeuralNetwork([IL, HL, OL])
+neural_network = NeuralNetwork([IL, HL, OL], process_out_action=lambda x: np.argmax(sigmoid(x)))
 hyperparameters = Hyperparameters(
     npop = 50,
     sigma = 0.1,
@@ -22,9 +21,10 @@ hyperparameters = Hyperparameters(
     simulation_num_episodes = 50,
     good_enough_fitness = 475,
 )
+SHOW_ALL_FITNESS_REWARDS = False
 
 # env_name = 'Acrobot-v1'
-# neural_network = NeuralNetwork([6, 25, 3])
+# neural_network = NeuralNetwork([6, 25, 3], process_out_action=lambda x: np.argmax(sigmoid(x)))
 # hyperparameters = Hyperparameters(
 #     npop = 10,
 #     sigma = 0.2,
@@ -33,6 +33,20 @@ hyperparameters = Hyperparameters(
 #     simulation_num_episodes = 10,
 #     good_enough_fitness = -150,
 # )
+# SHOW_ALL_FITNESS_REWARDS = True
+
+# env_name = 'MountainCarContinuous-v0'
+# neural_network = NeuralNetwork([2, 25, 1], process_out_action=lambda x: x)
+# hyperparameters = Hyperparameters(
+#     npop = 10,
+#     sigma = 0.2,
+#     alpha = 0.1,
+#     n_iter = 200,
+#     simulation_num_episodes = 10,
+#     good_enough_fitness = 90,
+# )
+# SHOW_ALL_FITNESS_REWARDS = False
+
 
 
 
@@ -47,7 +61,6 @@ def fitness_function(w, test_env, hyperparams):
         #observe initial state
         while True:
             action = neural_network.predict(observation, w_list)
-            action = np.argmax(action)
             #execute action
             observation_new, reward, terminated, truncated, _ = test_env.step(action)
             #collect reward
@@ -73,7 +86,6 @@ def show_to_humans(env_name, w):
     showcase_reward = 0
     while True:
         action = neural_network.predict(observation, w_list)
-        action = np.argmax(action)
         observation, reward, terminated, truncated, _ = showcase_env.step(action)
         showcase_reward += reward
 
