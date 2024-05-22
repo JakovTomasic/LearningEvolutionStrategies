@@ -5,6 +5,9 @@ def train(fitness, n_params, test_env, hyperparams):
 
     # Random initialization
     w = np.random.randn(n_params)
+    # with open('filename.npy', 'rb') as file:
+    #     w = np.load(file)
+
 
     best_w = w
     best_fitness = -math.inf
@@ -33,6 +36,10 @@ def train(fitness, n_params, test_env, hyperparams):
         f = fitness(w, test_env, hyperparams)
         if f > best_fitness:
             best_w, best_fitness = w, f
+        
+        with open(f'result_{i}_f_{f}.npy', 'wb') as file:
+            np.save(file, w)
+
 
         if best_fitness >= hyperparams.good_enough_fitness:
             break

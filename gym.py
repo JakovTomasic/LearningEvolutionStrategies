@@ -1,5 +1,6 @@
 import numpy as np
 import gymnasium as gym
+import cv2
 from neural_network import NeuralNetwork, sigmoid
 from hyperparameters import Hyperparameters
 from es import train
@@ -8,20 +9,20 @@ RANDOM_SEED = 0
 np.random.seed(RANDOM_SEED)
 
 
-env_name = 'CartPole-v1'
-IL = 4 #input layer nodes
-HL = 50 #hidden layer nodes
-OL = 2 #output layer nodes
-neural_network = NeuralNetwork([IL, HL, OL], process_out_action=lambda x: np.argmax(sigmoid(x)))
-hyperparameters = Hyperparameters(
-    npop = 50,
-    sigma = 0.1,
-    alpha = 0.1,
-    n_iter = 200,
-    simulation_num_episodes = 50,
-    good_enough_fitness = 475,
-)
-SHOW_ALL_FITNESS_REWARDS = False
+# env_name = 'CartPole-v1'
+# IL = 4 #input layer nodes
+# HL = 50 #hidden layer nodes
+# OL = 2 #output layer nodes
+# neural_network = NeuralNetwork([IL, HL, OL], process_out_action=lambda x: np.argmax(sigmoid(x)))
+# hyperparameters = Hyperparameters(
+#     npop = 50,
+#     sigma = 0.1,
+#     alpha = 0.1,
+#     n_iter = 200,
+#     simulation_num_episodes = 50,
+#     good_enough_fitness = 475,
+# )
+# SHOW_ALL_FITNESS_REWARDS = False
 
 # env_name = 'Acrobot-v1'
 # neural_network = NeuralNetwork([6, 25, 3], process_out_action=lambda x: np.argmax(sigmoid(x)))
@@ -48,10 +49,10 @@ SHOW_ALL_FITNESS_REWARDS = False
 # SHOW_ALL_FITNESS_REWARDS = False
 
 env_name = 'CarRacing-v2'
-neural_network = NeuralNetwork([96*96*3, 100, 5], process_out_action=lambda x: np.argmax(sigmoid(x)))
+neural_network = NeuralNetwork([84*84*4, 1024, 512, 256, 5], process_out_action=lambda x: np.argmax(sigmoid(x)))
 hyperparameters = Hyperparameters(
-    npop = 10,
-    sigma = 0.2,
+    npop = 25,
+    sigma = 0.1,
     alpha = 0.1,
     n_iter = 200,
     simulation_num_episodes = 1,
@@ -59,7 +60,16 @@ hyperparameters = Hyperparameters(
 )
 SHOW_ALL_FITNESS_REWARDS = True
 
+FRAMES_TO_SKIP = 50
+MAX_FRAMES_TO_TRAIN = 200
 
+
+def preprocess_observation(img):
+    img = img[:84, 6:90] # CarRacing-v2-specific cropping
+    # img = cv2.resize(img, dsize=(84, 84)) # or you can simply use rescaling
+    
+    img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY) / 255.0
+    return img.flatten()
 
 
 def fitness_function(w, test_env, hyperparams):
@@ -68,17 +78,27 @@ def fitness_function(w, test_env, hyperparams):
     total_reward = 0
 
     for episode in range(hyperparams.simulation_num_episodes):
-        observation = test_env.reset()[0]
+
+        previous_frames = []
+
+        observation, _ = test_env.reset()
+        for _ in range(FRAMES_TO_SKIP):
+            observation, reward, terminated, truncated, _ = test_env.step(0)
+            total_reward += reward
+            previous_frames.append(preprocess_observation(observation))
+
         #observe initial state
         index = 0
-        while index < 100:
-            action = neural_network.predict(observation.flatten(), w_list)
+        while index < MAX_FRAMES_TO_TRAIN:
+            previous_frames = previous_frames[:4]
+            predict_input = np.concatenate(previous_frames)
+            action = neural_network.predict(predict_input, w_list)
             #execute action
             observation_new, reward, terminated, truncated, _ = test_env.step(action)
             #collect reward
             total_reward += reward
             #update state
-            observation = observation_new
+            previous_frames.append(preprocess_observation(observation_new))
             index += 1
             #end episode
             if terminated or truncated:
@@ -95,11 +115,18 @@ def show_to_humans(env_name, w):
     showcase_env = gym.make(env_name, render_mode="human")
     observation, _ = showcase_env.reset()
     w_list = neural_network.reshape_parameters(w)
+    previous_frames = []
 
     showcase_reward = 0
     while True:
-        action = neural_network.predict(observation, w_list)
+        if len(previous_frames) >= 4:
+            previous_frames = previous_frames[:4]
+            predict_input = np.concatenate(previous_frames)
+            action = neural_network.predict(predict_input, w_list)
+        else:
+            action = 0
         observation, reward, terminated, truncated, _ = showcase_env.step(action)
+        previous_frames.append(preprocess_observation(observation))
         showcase_reward += reward
 
         if terminated or truncated:
@@ -108,6 +135,7 @@ def show_to_humans(env_name, w):
             else:
                 print(f'Truncated! Reward = {showcase_reward}')
             observation, _ = showcase_env.reset()
+            previous_frames = []
             showcase_reward = 0
 
     showcase_env.close()
@@ -115,6 +143,7 @@ def show_to_humans(env_name, w):
 
 
 def main():
+    # test_env = gym.make(env_name, continuous=False, render_mode="human")
     test_env = gym.make(env_name, continuous=False)
     # reset() should (in the typical use case) be called with a seed right after initialization and then never again.
     test_env.reset(seed=RANDOM_SEED)
