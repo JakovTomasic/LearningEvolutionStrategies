@@ -49,7 +49,8 @@ np.random.seed(RANDOM_SEED)
 # SHOW_ALL_FITNESS_REWARDS = False
 
 env_name = 'CarRacing-v2'
-neural_network = NeuralNetwork([84*84*4, 1024, 512, 256, 5], process_out_action=lambda x: np.argmax(sigmoid(x)))
+IMG_SIZE = 42
+neural_network = NeuralNetwork([IMG_SIZE*IMG_SIZE*4, 1024, 512, 256, 5], process_out_action=lambda x: np.argmax(sigmoid(x)))
 hyperparameters = Hyperparameters(
     npop = 25,
     sigma = 0.1,
@@ -66,8 +67,7 @@ MAX_FRAMES_TO_TRAIN = 200
 
 def preprocess_observation(img):
     img = img[:84, 6:90] # CarRacing-v2-specific cropping
-    # img = cv2.resize(img, dsize=(84, 84)) # or you can simply use rescaling
-    
+    img = cv2.resize(img, dsize=(IMG_SIZE, IMG_SIZE)) # or you can simply use rescaling
     img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY) / 255.0
     return img.flatten()
 
@@ -143,8 +143,8 @@ def show_to_humans(env_name, w):
 
 
 def main():
-    # test_env = gym.make(env_name, continuous=False, render_mode="human")
-    test_env = gym.make(env_name, continuous=False)
+    test_env = gym.make(env_name, continuous=False, render_mode="human")
+    # test_env = gym.make(env_name, continuous=False)
     # reset() should (in the typical use case) be called with a seed right after initialization and then never again.
     test_env.reset(seed=RANDOM_SEED)
     best_w, fitness = train(fitness_function, neural_network.weights_count, test_env, hyperparameters)
