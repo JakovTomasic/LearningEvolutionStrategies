@@ -8,13 +8,15 @@ def train(fitness, n_params, test_env, hyperparams):
 
     best_w = w
     best_fitness = -math.inf
+    iteration_rewards = []
 
     for i in range(hyperparams.n_iter):
 
         # if i % (n_iter // 20) == 0:
             # print('iter %d. w: %s, reward: %f' % (i, str(w), fitness(w)))
-        print(f'iter {i}. reward: {fitness(w, test_env, hyperparams)}')
-
+        reward = fitness(w, test_env, hyperparams)
+        print(f'iter {i}. reward: {reward}')
+        iteration_rewards.append(reward)
         # initialize memory for a population of w's, and their rewards
         N = np.random.randn(hyperparams.npop, n_params) # samples from a normal distribution N(0,1)
         R = np.zeros(hyperparams.npop)
@@ -36,5 +38,8 @@ def train(fitness, n_params, test_env, hyperparams):
 
         if best_fitness >= hyperparams.good_enough_fitness:
             break
+    
+    iteration_rewards.append(best_fitness)
+    i += 1
 
-    return best_w, best_fitness
+    return best_w, best_fitness, iteration_rewards, i
