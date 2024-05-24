@@ -1,6 +1,7 @@
 import numpy as np
 import gymnasium as gym
 import cv2
+import matplotlib.pyplot as plt
 from neural_network import NeuralNetwork, sigmoid
 from hyperparameters import Hyperparameters
 from es import train
@@ -49,8 +50,8 @@ np.random.seed(RANDOM_SEED)
 # SHOW_ALL_FITNESS_REWARDS = False
 
 env_name = 'CarRacing-v2'
-IMG_SIZE = 42
-neural_network = NeuralNetwork([IMG_SIZE*IMG_SIZE*4, 1024, 512, 256, 5], process_out_action=lambda x: np.argmax(sigmoid(x)))
+IMG_SIZE = 8
+neural_network = NeuralNetwork([IMG_SIZE*IMG_SIZE*4, 256, 64, 5], process_out_action=lambda x: np.argmax(sigmoid(x)))
 hyperparameters = Hyperparameters(
     npop = 25,
     sigma = 0.1,
@@ -64,13 +65,39 @@ SHOW_ALL_FITNESS_REWARDS = True
 FRAMES_TO_SKIP = 50
 MAX_FRAMES_TO_TRAIN = 200
 
+def is_green(pixel) -> bool:
+    return pixel[1] > 150 #and pixel[1] > sum(pixel) / 2
 
-def preprocess_observation(img):
+def preprocess_internal(img):
+    # img = img[:84, 6:90] # CarRacing-v2-specific cropping
+    # img = cv2.resize(img, dsize=(IMG_SIZE, IMG_SIZE)) # or you can simply use rescaling
+    # img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY) / 255.0
+    # return img
+    
     img = img[:84, 6:90] # CarRacing-v2-specific cropping
     img = cv2.resize(img, dsize=(IMG_SIZE, IMG_SIZE)) # or you can simply use rescaling
-    img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY) / 255.0
-    return img.flatten()
+    img2 = np.zeros((img.shape[0], img.shape[1]))
+    for i in range(img.shape[0]):
+        for j in range(img.shape[1]):
+            # img2[i, j] = img[i, j][1]
+            if is_green(img[i, j]):
+                img2[i, j] = 10
+            else:
+                img2[i, j] = -10
+    # img2 = cv2.resize(img2, dsize=(IMG_SIZE, IMG_SIZE)) # or you can simply use rescaling
+    return img2
 
+def preprocess_observation(img):
+    return preprocess_internal(img).flatten()
+
+def plot_image(image):
+    img = preprocess_internal(image)
+    fig, axes = plt.subplots(1, 2, figsize=(20, 5))
+    axes[0].imshow(image, cmap='gray')
+    axes[0].axis('off')
+    axes[1].imshow(img, cmap='gray')
+    axes[1].axis('off')
+    plt.show()
 
 def fitness_function(w, test_env, hyperparams):
 
@@ -87,6 +114,8 @@ def fitness_function(w, test_env, hyperparams):
             total_reward += reward
             previous_frames.append(preprocess_observation(observation))
 
+        # plot_image(observation)
+
         #observe initial state
         index = 0
         while index < MAX_FRAMES_TO_TRAIN:
@@ -94,7 +123,12 @@ def fitness_function(w, test_env, hyperparams):
             predict_input = np.concatenate(previous_frames)
             action = neural_network.predict(predict_input, w_list)
             #execute action
+
+            # action = 3
             observation_new, reward, terminated, truncated, _ = test_env.step(action)
+            # if index % 50 == 0:
+            #     plot_image(observation_new)
+
             #collect reward
             total_reward += reward
             #update state
