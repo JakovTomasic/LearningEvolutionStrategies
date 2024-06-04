@@ -9,7 +9,6 @@ RANDOM_SEED = 0
 np.random.seed(RANDOM_SEED)
 additional_args = dict()
 
-title_label = "CartPole - Learning Curve"
 env_name = 'CartPole-v1'
 IL = 4 #input layer nodes
 HL = 50 #hidden layer nodes
@@ -24,8 +23,8 @@ hyperparameters = Hyperparameters(
     good_enough_fitness = 475,
 )
 SHOW_ALL_FITNESS_REWARDS = False
+title_label = "CartPole Learning Curve - %d Episodes" % hyperparameters.simulation_num_episodes
 
-# title_label = "Acrobot - Learning Curve"
 # env_name = 'Acrobot-v1'
 # neural_network = NeuralNetwork([6, 25, 3], process_out_action=lambda x: np.argmax(sigmoid(x)))
 # hyperparameters = Hyperparameters(
@@ -36,9 +35,10 @@ SHOW_ALL_FITNESS_REWARDS = False
 #     simulation_num_episodes = 10,
 #     good_enough_fitness = -150,
 # )
-# SHOW_ALL_FITNESS_REWARDS = True
+# SHOW_ALL_FITNESS_REWARDS = False
+# title_label = "Acrobot Learning Curve - %d Episodes" % hyperparameters.simulation_num_episodes
 
-# title_label = "MountainCarContinuous - Learning Curve"
+
 # env_name = 'MountainCarContinuous-v0'
 # neural_network = NeuralNetwork([2, 25, 1], process_out_action=lambda x: x)
 # hyperparameters = Hyperparameters(
@@ -50,8 +50,9 @@ SHOW_ALL_FITNESS_REWARDS = False
 #     good_enough_fitness = 90,
 # )
 # SHOW_ALL_FITNESS_REWARDS = False
+# title_label = "MountainCarContinuous Learning Curve - %d Episodes" % hyperparameters.simulation_num_episodes
 
-# title_label = "LunarLander - Learning Curve"
+
 # env_name = 'LunarLander-v2'
 # additional_args = dict(
 #     continuous = False,
@@ -67,9 +68,10 @@ SHOW_ALL_FITNESS_REWARDS = False
 #     alpha = 0.1,
 #     n_iter = 200,
 #     simulation_num_episodes = 50,
-#     good_enough_fitness = np.inf,
+#     good_enough_fitness = 225,
 # )
 # SHOW_ALL_FITNESS_REWARDS = False
+# title_label = "LunarLander Learning Curve - %d Episodes" % hyperparameters.simulation_num_episodes
 
 
 
@@ -125,8 +127,9 @@ def show_to_humans(env_name, w):
 
 
 def plot_learning_curve(max_iteration, iteration_rewards):
+    #label="Variance: %.2f" % np.var(iteration_rewards)
     plt.plot(np.arange(max_iteration+1), iteration_rewards, label="Variance: %.2f" % np.var(iteration_rewards))
-    plt.xticks(np.arange(max_iteration+1, step=20))
+    plt.xticks(np.arange(max_iteration+1, step=round(max_iteration/10)))
     plt.xlabel("Iterations")
     plt.ylabel("Total Reward / Num Episodes")
     plt.title(title_label)
@@ -145,9 +148,9 @@ def main():
     print("reward =", fitness)
     print("w =", best_w)
 
-    plot_learning_curve(max_iteration, iteration_rewards)
+    #plot_learning_curve(max_iteration, iteration_rewards)
 
-    #show_to_humans(env_name, best_w)
+    show_to_humans(env_name, best_w)
 
 main()
 
