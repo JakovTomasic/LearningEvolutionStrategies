@@ -4,31 +4,32 @@ import gymnasium as gym
 from neural_network import NeuralNetwork, sigmoid
 from hyperparameters import Hyperparameters
 from es import train
+from fcmaes.optimizer import crfmnes, cmaes
 
 RANDOM_SEED = 0
 np.random.seed(RANDOM_SEED)
 additional_args = dict()
 
-env_name = 'CartPole-v1'
-IL = 4 #input layer nodes
-HL = 50 #hidden layer nodes
-OL = 2 #output layer nodes
-neural_network = NeuralNetwork([IL, HL, OL], process_out_action=lambda x: np.argmax(sigmoid(x)))
-hyperparameters = Hyperparameters(
-    npop = 50,
-    sigma = 0.1,
-    alpha = 0.1,
-    n_iter = 200,
-    simulation_num_episodes = 50,
-    good_enough_fitness = 475,
-)
-SHOW_ALL_FITNESS_REWARDS = False
-title_label = "CartPole Learning Curve - %d Episodes" % hyperparameters.simulation_num_episodes
+# env_name = 'CartPole-v1'
+# IL = 4 #input layer nodes
+# HL = 50 #hidden layer nodes
+# OL = 2 #output layer nodes
+# neural_network = NeuralNetwork([IL, HL, OL], process_out_action=lambda x: np.argmax(sigmoid(x)))
+# hyperparameters = Hyperparameters(
+#     npop = 50,
+#     sigma = 0.1,
+#     alpha = 0.1,
+#     n_iter = 200,
+#     simulation_num_episodes = 50,
+#     good_enough_fitness = 475,
+# )
+# SHOW_ALL_FITNESS_REWARDS = False
+# title_label = "CartPole Learning Curve - %d Episodes" % hyperparameters.simulation_num_episodes
 
 # env_name = 'Acrobot-v1'
 # neural_network = NeuralNetwork([6, 25, 3], process_out_action=lambda x: np.argmax(sigmoid(x)))
 # hyperparameters = Hyperparameters(
-#     npop = 10,
+#     npop = 30,
 #     sigma = 0.2,
 #     alpha = 0.1,
 #     n_iter = 200,
@@ -42,7 +43,7 @@ title_label = "CartPole Learning Curve - %d Episodes" % hyperparameters.simulati
 # env_name = 'MountainCarContinuous-v0'
 # neural_network = NeuralNetwork([2, 25, 1], process_out_action=lambda x: x)
 # hyperparameters = Hyperparameters(
-#     npop = 10,
+#     npop = 20,
 #     sigma = 0.2,
 #     alpha = 0.1,
 #     n_iter = 200,
@@ -53,25 +54,25 @@ title_label = "CartPole Learning Curve - %d Episodes" % hyperparameters.simulati
 # title_label = "MountainCarContinuous Learning Curve - %d Episodes" % hyperparameters.simulation_num_episodes
 
 
-# env_name = 'LunarLander-v2'
-# additional_args = dict(
-#     continuous = False,
-#     gravity = -10.0,
-#     enable_wind = False,
-#     wind_power = 15.0,
-#     turbulence_power = 1.5
-# )
-# neural_network = NeuralNetwork([8, 25, 4], process_out_action=lambda x: np.argmax(sigmoid(x)))
-# hyperparameters = Hyperparameters(
-#     npop = 10,
-#     sigma = 0.2,
-#     alpha = 0.1,
-#     n_iter = 200,
-#     simulation_num_episodes = 50,
-#     good_enough_fitness = 225,
-# )
-# SHOW_ALL_FITNESS_REWARDS = False
-# title_label = "LunarLander Learning Curve - %d Episodes" % hyperparameters.simulation_num_episodes
+env_name = 'LunarLander-v2'
+additional_args = dict(
+    continuous = False,
+    gravity = -10.0,
+    enable_wind = False,
+    wind_power = 15.0,
+    turbulence_power = 1.5
+)
+neural_network = NeuralNetwork([8, 25, 4], process_out_action=lambda x: np.argmax(sigmoid(x)))
+hyperparameters = Hyperparameters(
+    npop = 30,
+    sigma = 0.2,
+    alpha = 0.1,
+    n_iter = 200,
+    simulation_num_episodes = 10,
+    good_enough_fitness = 225,
+)
+SHOW_ALL_FITNESS_REWARDS = False
+title_label = "LunarLander Learning Curve - %d Episodes" % hyperparameters.simulation_num_episodes
 
 
 
@@ -128,7 +129,7 @@ def show_to_humans(env_name, w):
 
 def plot_learning_curve(max_iteration, iteration_rewards):
     #label="Variance: %.2f" % np.var(iteration_rewards)
-    plt.plot(np.arange(max_iteration+1), iteration_rewards, label="Variance: %.2f" % np.var(iteration_rewards))
+    plt.plot(np.arange(max_iteration), iteration_rewards, label="Variance: %.2f" % np.var(iteration_rewards))
     plt.xticks(np.arange(max_iteration+1, step=round(max_iteration/10)))
     plt.xlabel("Iterations")
     plt.ylabel("Total Reward / Num Episodes")
@@ -152,6 +153,55 @@ def main():
 
     show_to_humans(env_name, best_w)
 
-main()
+#main()
 
+################## FCMA Lib ##########################
+
+test_env = gym.make(env_name, **additional_args)
+test_env.reset(seed=RANDOM_SEED)
+
+evaluations = 0
+max_iter = 0
+iteration_rewards = []
+
+def update_fitness(w):
+    global evaluations
+    global max_iter
+
+    ret_val = fitness_function(w, test_env, hyperparameters)
+
+    if(evaluations == hyperparameters.npop):
+        max_iter += 1
+        evaluations = 0
+        iteration_rewards.append(ret_val)
+
+    evaluations += 1
+    print(evaluations, ret_val)
+
+    return -ret_val
+
+def main_cmaes():
+
+    w = np.random.randn(neural_network.weights_count)
+
+    res = cmaes.minimize(update_fitness, x0=w, input_sigma=hyperparameters.sigma, popsize=hyperparameters.npop, 
+                            max_evaluations=hyperparameters.npop*hyperparameters.n_iter
+                        )
+    
+    # res = crfmnes.minimize(update_fitness, x0=w, input_sigma=hyperparameters.sigma, popsize=hyperparameters.npop, 
+    #                     max_evaluations=hyperparameters.npop*hyperparameters.n_iter
+    #                 )
+
+    test_env.close()
+
+    print("done!")
+    print(res)
+    print("reward =", res.fun)
+    print("w =", res.x)
+
+    plot_learning_curve(max_iter, iteration_rewards)
+
+    show_to_humans(env_name, res.x)
+
+main_cmaes()
 
