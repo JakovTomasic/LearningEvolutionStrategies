@@ -51,14 +51,15 @@ np.random.seed(RANDOM_SEED)
 
 env_name = 'CarRacing-v2'
 IMG_SIZE = 8
-neural_network = NeuralNetwork([IMG_SIZE*IMG_SIZE*4, 256, 64, 5], process_out_action=lambda x: np.argmax(sigmoid(x)))
+# neural_network = NeuralNetwork([IMG_SIZE*IMG_SIZE*4, 256, 64, 5], process_out_action=lambda x: np.argmax(sigmoid(x)))
+neural_network = NeuralNetwork([IMG_SIZE*IMG_SIZE*4, 64, 5], process_out_action=lambda x: np.argmax(sigmoid(x)))
 hyperparameters = Hyperparameters(
-    npop = 25,
-    sigma = 0.1,
+    npop = 10,
+    sigma = 0.2,
     alpha = 0.1,
     n_iter = 200,
-    simulation_num_episodes = 1,
-    good_enough_fitness = 90,
+    simulation_num_episodes = 3,
+    good_enough_fitness = 9999999999,
 )
 SHOW_ALL_FITNESS_REWARDS = True
 
@@ -81,9 +82,9 @@ def preprocess_internal(img):
         for j in range(img.shape[1]):
             # img2[i, j] = img[i, j][1]
             if is_green(img[i, j]):
-                img2[i, j] = 10
+                img2[i, j] = 100
             else:
-                img2[i, j] = -10
+                img2[i, j] = -100
     # img2 = cv2.resize(img2, dsize=(IMG_SIZE, IMG_SIZE)) # or you can simply use rescaling
     return img2
 
@@ -139,30 +140,45 @@ def fitness_function(w, test_env, hyperparams):
                 break
 
     if SHOW_ALL_FITNESS_REWARDS:
-        print(f'fitness_function reward = {total_reward}')
+        print(f'fitness_function reward = {total_reward / hyperparams.simulation_num_episodes}', flush=True)
 
     return total_reward / hyperparams.simulation_num_episodes
 
 
 def show_to_humans(env_name, w):
     print("Running showcase...")
-    showcase_env = gym.make(env_name, render_mode="human")
+    showcase_env = gym.make(env_name, continuous=False, render_mode="human")
     observation, _ = showcase_env.reset()
     w_list = neural_network.reshape_parameters(w)
+
     previous_frames = []
-
     showcase_reward = 0
-    while True:
-        if len(previous_frames) >= 4:
-            previous_frames = previous_frames[:4]
-            predict_input = np.concatenate(previous_frames)
-            action = neural_network.predict(predict_input, w_list)
-        else:
-            action = 0
-        observation, reward, terminated, truncated, _ = showcase_env.step(action)
-        previous_frames.append(preprocess_observation(observation))
-        showcase_reward += reward
 
+    observation, _ = showcase_env.reset()
+    for _ in range(FRAMES_TO_SKIP):
+        observation, reward, terminated, truncated, _ = showcase_env.step(0)
+        showcase_reward += reward
+        previous_frames.append(preprocess_observation(observation))
+
+    index = 0
+    while True:
+        previous_frames = previous_frames[:4]
+        predict_input = np.concatenate(previous_frames)
+        action = neural_network.predict(predict_input, w_list)
+        #execute action
+
+        # action = 3
+        observation_new, reward, terminated, truncated, _ = showcase_env.step(action)
+        # if index % 50 == 0:
+        #     plot_image(observation_new)
+
+        #collect reward
+        showcase_reward += reward
+        #update state
+        previous_frames.append(preprocess_observation(observation_new))
+        index += 1
+
+        #end episode
         if terminated or truncated:
             if terminated:
                 print(f'Terminated! Reward = {showcase_reward}')
@@ -188,6 +204,10 @@ def main():
     print("reward =", fitness)
     print("w =", best_w)
 
+    # Random initialization
+    best_w = 0
+    with open('old_results_3/result_15_f_105.79638879437947.npy', 'rb') as file:
+        best_w = np.load(file)
     show_to_humans(env_name, best_w)
 
 main()
