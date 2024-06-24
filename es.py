@@ -1,10 +1,9 @@
 import numpy as np
 import math
 
-def train(fitness, n_params, test_env, hyperparams):
-
-    # Random initialization
-    w = np.random.randn(n_params)
+def train(fitness, n_params, test_env, hyperparams, start_w):
+    
+    w = start_w
 
     best_w = w
     best_fitness = -math.inf
