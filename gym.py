@@ -14,22 +14,22 @@ np.random.seed(RANDOM_SEED)
 additional_args = dict()
 po = ProcessOut()
 
-# env_name = 'CartPole-v1'
-# IL = 4 #input layer nodes
-# HL = 50 #hidden layer nodes
-# OL = 2 #output layer nodes
-# neural_network = NeuralNetwork([IL, HL, OL], process_out_action=po.argmax_selection)
-# hyperparameters = Hyperparameters(
-#     npop = 50,
-#     sigma = 0.1,
-#     alpha = 0.1,
-#     n_iter = 200,
-#     simulation_num_episodes = 50,
-#     good_enough_fitness = 500,
-# )
-# SHOW_ALL_FITNESS_REWARDS = False
-# title_label = "CartPole Learning Curve - %d Episodes" % hyperparameters.simulation_num_episodes
-# title_label_exploration = "CartPole - Action space exploration vs. No action space exploration"
+env_name = 'CartPole-v1'
+IL = 4 #input layer nodes
+HL = 50 #hidden layer nodes
+OL = 2 #output layer nodes
+neural_network = NeuralNetwork([IL, HL, OL], process_out_action=po.argmax_selection)
+hyperparameters = Hyperparameters(
+    npop = 50,
+    sigma = 0.1,
+    alpha = 0.1,
+    n_iter = 200,
+    simulation_num_episodes = 50,
+    good_enough_fitness = 500,
+)
+SHOW_ALL_FITNESS_REWARDS = False
+title_label = "CartPole Learning Curve - %d Episodes" % hyperparameters.simulation_num_episodes
+title_label_exploration = "CartPole - Action space exploration vs. No action space exploration"
 
 
 # env_name = 'Acrobot-v1'
@@ -59,7 +59,7 @@ po = ProcessOut()
 # )
 # SHOW_ALL_FITNESS_REWARDS = False
 # title_label = "MountainCarContinuous Learning Curve - %d Episodes" % hyperparameters.simulation_num_episodes
-# title_label_exploration = "MountainCarContinuous - Action space exploration vs. No action space exploration"
+# title_label_exploration = "MountainCarContinuous - \nAction space exploration vs. No action space exploration"
 
 
 # env_name = 'LunarLander-v2'
@@ -84,24 +84,24 @@ po = ProcessOut()
 # title_label_exploration = "LunarLander - Action space exploration vs. No action space exploration"
 
 
-env_name = 'FrozenLake-v1'
-neural_network = NeuralNetwork([16, 25, 4], process_out_action=po.argmax_selection)
-additional_args = dict(
-    desc = None,
-    map_name = "4x4", 
-    is_slippery = False
-)
-hyperparameters = Hyperparameters(
-    npop = 50,
-    sigma = 0.2,  # probaj još 0.6 i 0.9
-    alpha = 0.1,
-    n_iter = 200,
-    simulation_num_episodes = 1,
-    good_enough_fitness = 1_000_000,
-)
-SHOW_ALL_FITNESS_REWARDS = False
-title_label = "FrozenLake Learning Curve - %d Episodes" % hyperparameters.simulation_num_episodes
-title_label_exploration = "FrozenLake - Action space exploration vs. No action space exploration"
+# env_name = 'FrozenLake-v1'
+# neural_network = NeuralNetwork([16, 25, 4], process_out_action=po.argmax_selection)
+# additional_args = dict(
+#     desc = None,
+#     map_name = "4x4", 
+#     is_slippery = False
+# )
+# hyperparameters = Hyperparameters(
+#     npop = 50,
+#     sigma = 0.2,  # probaj još 0.6 i 0.9
+#     alpha = 0.1,
+#     n_iter = 200,
+#     simulation_num_episodes = 1,
+#     good_enough_fitness = 1_000_000,
+# )
+# SHOW_ALL_FITNESS_REWARDS = False
+# title_label = "FrozenLake Learning Curve - %d Episodes" % hyperparameters.simulation_num_episodes
+# title_label_exploration = "FrozenLake - Action space exploration vs. No action space exploration"
 
 
 
@@ -271,8 +271,8 @@ def plot_learning_curve(max_iteration, iteration_rewards):
 
 def plot_learning_curve_comparison(rewards_1, rewards_2):
     max_iteration = max(len(rewards_1), len(rewards_2))
-    plt.plot(np.arange(len(rewards_1)), rewards_1, label="No action space exploration")
-    plt.plot(np.arange(len(rewards_2)), rewards_2, label="Action space exploration")
+    plt.plot(np.arange(len(rewards_1)), rewards_1, label="Without exploration (variance: %.2f)" % np.var(rewards_1))
+    plt.plot(np.arange(len(rewards_2)), rewards_2, label="With exploration (variance: %.2f)" % np.var(rewards_2))
     plt.xticks(np.arange(0, max_iteration+1, step=round(max_iteration/10)))
     plt.xlabel("Iteration")
     plt.ylabel("Reward")
@@ -367,19 +367,22 @@ evaluations = 0
 max_iter = 0
 iteration_rewards = []
 
+ff = frozen_lake_fitness_function if env_name == 'FrozenLake-v1' else fitness_function
+
 def update_fitness(w):
     global evaluations
     global max_iter
 
-    ret_val = fitness_function(w, test_env, hyperparameters)
+    ret_val = ff(w, test_env, hyperparameters)
 
     if(evaluations == hyperparameters.npop):
         max_iter += 1
         evaluations = 0
         iteration_rewards.append(ret_val)
+        print("iteration", max_iter, ":", ret_val)
 
     evaluations += 1
-    print(evaluations, ret_val)
+    # print(evaluations, ret_val)
 
     return -ret_val
 
@@ -404,7 +407,10 @@ def main_cmaes():
 
     plot_learning_curve(max_iter, iteration_rewards)
 
-    show_to_humans(env_name, res.x)
+    if env_name == 'FrozenLake-v1':
+        frozen_lake_show_to_humans(env_name, res.x)
+    else:
+        show_to_humans(env_name, res.x)
 
-#main_cmaes()
+# main_cmaes()
 
